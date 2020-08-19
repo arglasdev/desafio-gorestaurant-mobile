@@ -1,12 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+
 import { Image, ScrollView } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Feather';
+
 import { useNavigation } from '@react-navigation/native';
+
 import Logo from '../../assets/logo-header.png';
+
 import SearchInput from '../../components/SearchInput';
 
 import api from '../../services/api';
+
 import formatValue from '../../utils/formatValue';
 
 import {
@@ -30,36 +35,63 @@ import {
 
 interface Food {
   id: number;
+
   name: string;
+
   description: string;
+
   price: number;
+
   thumbnail_url: string;
+
   formattedPrice: string;
+
+  category: number;
 }
 
 interface Category {
   id: number;
+
   title: string;
+
   image_url: string;
 }
 
 const Dashboard: React.FC = () => {
   const [foods, setFoods] = useState<Food[]>([]);
+
   const [categories, setCategories] = useState<Category[]>([]);
+
   const [selectedCategory, setSelectedCategory] = useState<
     number | undefined
   >();
-  const [searchValue, setSearchValue] = useState('');
 
   const navigation = useNavigation();
 
+  const [searchValue, setSearchValue] = useState('');
+
   async function handleNavigate(id: number): Promise<void> {
-    // Navigate do ProductDetails page
+    navigation.navigate('FoodDetails', {
+      id,
+    });
   }
 
   useEffect(() => {
     async function loadFoods(): Promise<void> {
-      // Load Foods from API
+      const foodsResponse = await api.get('foods', {
+        params: {
+          category_like: selectedCategory,
+
+          name_like: searchValue,
+        },
+      });
+
+      const data = foodsResponse.data.map(food => ({
+        ...food,
+        formattedPrice: formatValue(food.price),
+      }));
+
+      setFoods(data);
     }
 
     loadFoods();
@@ -67,20 +99,27 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     async function loadCategories(): Promise<void> {
-      // Load categories from API
+      const categoriesResponse = await api.get('/categories');
+
+      setCategories(categoriesResponse.data);
     }
 
     loadCategories();
   }, []);
 
   function handleSelectCategory(id: number): void {
-    // Select / deselect category
+    if (selectedCategory && selectedCategory === id) {
+      setSelectedCategory(undefined);
+    } else {
+      setSelectedCategory(id);
+    }
   }
 
   return (
     <Container>
       <Header>
         <Image source={Logo} />
+
         <Icon
           name="log-out"
           size={24}
@@ -88,6 +127,7 @@ const Dashboard: React.FC = () => {
           onPress={() => navigation.navigate('Home')}
         />
       </Header>
+
       <FilterContainer>
         <SearchInput
           value={searchValue}
@@ -95,9 +135,11 @@ const Dashboard: React.FC = () => {
           placeholder="Qual comida você procura?"
         />
       </FilterContainer>
+
       <ScrollView>
         <CategoryContainer>
           <Title>Categorias</Title>
+
           <CategorySlider
             contentContainerStyle={{
               paddingHorizontal: 20,
@@ -117,13 +159,16 @@ const Dashboard: React.FC = () => {
                   style={{ width: 56, height: 56 }}
                   source={{ uri: category.image_url }}
                 />
+
                 <CategoryItemTitle>{category.title}</CategoryItemTitle>
               </CategoryItem>
             ))}
           </CategorySlider>
         </CategoryContainer>
+
         <FoodsContainer>
           <Title>Pratos</Title>
+
           <FoodList>
             {foods.map(food => (
               <Food
@@ -138,9 +183,12 @@ const Dashboard: React.FC = () => {
                     source={{ uri: food.thumbnail_url }}
                   />
                 </FoodImageContainer>
+
                 <FoodContent>
                   <FoodTitle>{food.name}</FoodTitle>
+
                   <FoodDescription>{food.description}</FoodDescription>
+
                   <FoodPricing>{food.formattedPrice}</FoodPricing>
                 </FoodContent>
               </Food>
